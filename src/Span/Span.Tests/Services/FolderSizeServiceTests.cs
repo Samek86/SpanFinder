@@ -176,6 +176,28 @@ public class FolderSizeServiceTests
     }
 
     [TestMethod]
+    public async Task InvalidateUnder_RemovesSelfAndDescendantsOnly()
+    {
+        var child = Path.Combine(_tempRoot, "child");
+        var nested = Path.Combine(child, "nested");
+        var other = Path.Combine(_tempRoot, "other");
+        Directory.CreateDirectory(nested);
+        Directory.CreateDirectory(other);
+
+        await WaitForSizeCalculated(_tempRoot);
+        await WaitForSizeCalculated(child);
+        await WaitForSizeCalculated(nested);
+        await WaitForSizeCalculated(other);
+
+        _service.InvalidateUnder(child);
+
+        Assert.IsNull(_service.TryGetCachedSize(child));
+        Assert.IsNull(_service.TryGetCachedSize(nested));
+        Assert.IsNotNull(_service.TryGetCachedSize(other));
+        Assert.IsNotNull(_service.TryGetCachedSize(_tempRoot));
+    }
+
+    [TestMethod]
     public async Task Invalidate_AllowsRecalculation()
     {
         CreateFileWithSize("v1.bin", 100);

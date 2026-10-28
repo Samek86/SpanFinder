@@ -440,8 +440,27 @@ namespace Span.ViewModels
 
             // UI 스레드의 DispatcherQueue를 캡처 (콜백은 백그라운드 스레드에서 호출됨)
             _uiDispatcher ??= Microsoft.UI.Dispatching.DispatcherQueue.GetForCurrentThread();
+            // 再要求でハンドラが二重登録されないように一度外す
+            svc.SizeCalculated -= OnFolderSizeCalculated;
             svc.SizeCalculated += OnFolderSizeCalculated;
             svc.RequestCalculation(Path);
+        }
+
+        /// <summary>
+        /// 表示中のフォルダサイズを消し、キャッシュが無ければ再計算する。
+        /// F5 で FolderSizeService を無効化したあとに呼ぶ。
+        /// _calculatedSize が残っていると RequestFolderSizeCalculation が即 return する。
+        /// </summary>
+        public void ResetFolderSizeDisplay()
+        {
+            var svc = App.Current.Services.GetService(typeof(FolderSizeService)) as FolderSizeService;
+            if (svc != null)
+                svc.SizeCalculated -= OnFolderSizeCalculated;
+
+            _calculatedSize = null;
+            OnPropertyChanged(nameof(Size));
+            OnPropertyChanged(nameof(SizeValue));
+            RequestFolderSizeCalculation();
         }
 
         private void OnFolderSizeCalculated(string folderPath, long bytes)

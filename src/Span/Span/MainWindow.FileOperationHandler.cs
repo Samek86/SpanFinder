@@ -1039,7 +1039,14 @@ namespace Span
 
                 var previousSelection = column.SelectedChild;
 
+                // Reload 中に Details がサイズを引き直しても古いキャッシュを見ないように先に捨てる
+                InvalidateDisplayedFolderSizes(column);
+
                 await column.ReloadAsync();
+
+                // SyncChildren が ViewModel を再利用すると _calculatedSize が残り、
+                // コンテナが再生成されないと再計算されない。表示を消して要求し直す。
+                ResetDisplayedFolderSizes(column);
 
                 // 이전 선택 복원 (이름 기준)
                 if (previousSelection != null)
@@ -1053,6 +1060,48 @@ namespace Span
             catch (Exception ex)
             {
                 Helpers.DebugLogger.Log($"[FileOp] HandleRefresh error: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// 表示中フォルダと、その子フォルダのサイズキャッシュを無効化する。
+        /// </summary>
+        private static void InvalidateDisplayedFolderSizes(FolderViewModel column)
+        {
+            try
+            {
+                var sizeSvc = App.Current.Services.GetService(typeof(FolderSizeService)) as FolderSizeService;
+                if (sizeSvc == null || string.IsNullOrEmpty(column.Path)) return;
+                sizeSvc.InvalidateUnder(column.Path);
+                foreach (var child in column.Children.ToList())
+                {
+                    if (child is FolderViewModel folder && !string.IsNullOrEmpty(folder.Path))
+                        sizeSvc.Invalidate(folder.Path);
+                }
+            }
+            catch (Exception ex)
+            {
+                Helpers.DebugLogger.Log($"[FileOp] Invalidate folder sizes: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// 再読込後の子フォルダについて、サイズ表示をクリアして再計算を要求する。
+        /// 分割ビューは HandleRefresh が選んだアクティブペイン、ミラーカラムはアクティブ列が対象。
+        /// </summary>
+        private static void ResetDisplayedFolderSizes(FolderViewModel column)
+        {
+            try
+            {
+                foreach (var child in column.Children.ToList())
+                {
+                    if (child is FolderViewModel folder)
+                        folder.ResetFolderSizeDisplay();
+                }
+            }
+            catch (Exception ex)
+            {
+                Helpers.DebugLogger.Log($"[FileOp] Reset folder sizes: {ex.Message}");
             }
         }
 
