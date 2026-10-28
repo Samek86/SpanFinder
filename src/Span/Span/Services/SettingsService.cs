@@ -351,6 +351,21 @@ public class SettingsService : ISettingsService
         set => Set("ShowCopilotMenu", value);
     }
 
+    /// <summary>
+    /// 非表示にする組み込みコンテキストメニュー項目 ID。カンマ区切り。既定は空（すべて表示）。
+    /// </summary>
+    public string HiddenContextMenuItems
+    {
+        get => Get(ContextMenuItemSettings.StorageKey, "");
+        set => Set(ContextMenuItemSettings.StorageKey, value ?? "");
+    }
+
+    public bool IsContextMenuItemVisible(string id)
+        => ContextMenuItemSettings.IsVisible(HiddenContextMenuItems, id);
+
+    public void SetContextMenuItemVisible(string id, bool visible)
+        => HiddenContextMenuItems = ContextMenuItemSettings.SetVisible(HiddenContextMenuItems, id, visible);
+
     // ── General ──
 
     public int StartupBehavior

@@ -349,7 +349,7 @@ namespace Span.Services
                 menu.Items.Add(CreateItem(_loc.Get("Rename"), "\uE70F", () => host.PerformRename(file), "M"));
                 menu.Items.Add(new MenuFlyoutSeparator());
 
-                menu.Items.Add(CreateItem(_loc.Get("CopyPath"), "\uE8C8", () => host.PerformCopyPath(file.Path), "H"));
+                AddOptionalItem(menu, "CopyPath", CreateItem(_loc.Get("CopyPath"), "\uE8C8", () => host.PerformCopyPath(file.Path), "H"));
                 menu.Items.Add(new MenuFlyoutSeparator());
                 menu.Items.Add(CreateItem(_loc.Get("Properties"), "\uE946", () => ShowProperties(file), "R"));
             }
@@ -361,13 +361,13 @@ namespace Span.Services
                 menu.Items.Add(CreateItem(_loc.Get("Open"), "\uE8E5", () => host.PerformOpen(file), "O"));
                 if (!isArchive)
                 {
-                    menu.Items.Add(CreateItem(_loc.Get("OpenWith"), "\uE7AC", () => _ = _shellService.OpenWithAsync(file.Path), "A"));
+                    AddOptionalItem(menu, "OpenWith", CreateItem(_loc.Get("OpenWith"), "\uE7AC", () => _ = _shellService.OpenWithAsync(file.Path), "A"));
                 }
-                // 실행 가능 파일에 "관리자 권한으로 실행" 추가
+                // 実行可能ファイルの「管理者として実行」
                 var fileExt = System.IO.Path.GetExtension(file.Path)?.ToLowerInvariant();
                 if (fileExt is ".exe" or ".msi" or ".bat" or ".cmd")
                 {
-                    menu.Items.Add(CreateItem(_loc.Get("RunAsAdmin"), "\uE7EF",
+                    AddOptionalItem(menu, "RunAsAdmin", CreateItem(_loc.Get("RunAsAdmin"), "\uE7EF",
                         () => _shellService.RunAsAdmin(file.Path)));
                 }
                 menu.Items.Add(new MenuFlyoutSeparator());
@@ -387,11 +387,11 @@ namespace Span.Services
                     // ExtractOperation이 "지원하지 않는 형식"으로 안내한다.
                     if (Helpers.ArchivePathHelper.IsArchiveFile(file.Path))
                     {
-                        menu.Items.Add(CreateItem(_loc.Get("ExtractHere"), "\uE8B7", () => host.PerformExtractHere(file.Path), "E"));
-                        menu.Items.Add(CreateItem(_loc.Get("ExtractTo"), "\uE8B7", () => host.PerformExtractTo(file.Path), "T"));
+                        AddOptionalItem(menu, "ExtractHere", CreateItem(_loc.Get("ExtractHere"), "\uE8B7", () => host.PerformExtractHere(file.Path), "E"));
+                        AddOptionalItem(menu, "ExtractTo", CreateItem(_loc.Get("ExtractTo"), "\uE8B7", () => host.PerformExtractTo(file.Path), "T"));
                         menu.Items.Add(new MenuFlyoutSeparator());
                     }
-                    menu.Items.Add(CreateItem(_loc.Get("CompressToZip"), "\uE8C5", () => host.PerformCompress(new[] { file.Path }), "P"));
+                    AddOptionalItem(menu, "CompressToZip", CreateItem(_loc.Get("CompressToZip"), "\uE8C5", () => host.PerformCompress(new[] { file.Path }), "P"));
                     menu.Items.Add(new MenuFlyoutSeparator());
 
                     menu.Items.Add(CreateItem(_loc.Get("Delete"), "\uE74D", () => host.PerformDelete(file.Path, file.Name), "D"));
@@ -404,10 +404,10 @@ namespace Span.Services
                     menu.Items.Add(new MenuFlyoutSeparator());
                 }
 
-                menu.Items.Add(CreateItem(_loc.Get("CopyPath"), "\uE8C8", () => host.PerformCopyPath(file.Path), "H"));
+                AddOptionalItem(menu, "CopyPath", CreateItem(_loc.Get("CopyPath"), "\uE8C8", () => host.PerformCopyPath(file.Path), "H"));
                 if (!isArchive)
                 {
-                    menu.Items.Add(CreateItem(_loc.Get("OpenInExplorer"), "\uED25", () => _shellService.OpenInExplorer(file.Path), "L"));
+                    AddOptionalItem(menu, "OpenInExplorer", CreateItem(_loc.Get("OpenInExplorer"), "\uED25", () => _shellService.OpenInExplorer(file.Path), "L"));
                 }
 
                 menu.Items.Add(new MenuFlyoutSeparator());
@@ -415,9 +415,13 @@ namespace Span.Services
 
                 // Shell 항목: 캐시 히트 → 메뉴 표시 전 삽입 + 백그라운드 재검증
                 //              캐시 미스 → await로 대기 후 삽입 (최대 1.5초)
+                // 挿入位置は末尾の「セパレータ + プロパティ」を前提にする
+                CollapseSeparators(menu);
                 if (!isArchive)
                     await AppendShellExtensionItemsAsync(menu, file.Path, forceShellExtensions);
             }
+
+            CollapseSeparators(menu);
 
             // Cleanup session when menu closes
             menu.Closed += OnMenuClosed;
@@ -436,12 +440,13 @@ namespace Span.Services
             menu.Items.Add(CreateItem(_loc.Get("Open"), "\uE8E5", () => host.PerformOpen(folder), "O"));
             if (!isRemote && !isArchive)
             {
-                menu.Items.Add(CreateItem(_loc.Get("OpenInNewTab"), "\uE8A7", () => host.PerformOpenInNewTab(folder.Path), "T"));
-                menu.Items.Add(CreateItem(_loc.Get("OpenTerminal"), "\uE756", () => host.PerformOpenTerminal(folder.Path), "E"));
+                AddOptionalItem(menu, "OpenInNewTab", CreateItem(_loc.Get("OpenInNewTab"), "\uE8A7", () => host.PerformOpenInNewTab(folder.Path), "T"));
+                AddOptionalItem(menu, "OpenTerminal", CreateItem(_loc.Get("OpenTerminal"), "\uE756", () => host.PerformOpenTerminal(folder.Path), "E"));
 
                 // Issue #58: folder colour tag - settings ON + local fixed drive only
                 var tagSettings = App.Current.Services.GetService(typeof(SettingsService)) as SettingsService;
-                if (tagSettings?.FolderTagsEnabled == true && FolderTagService.IsTaggable(folder.Path))
+                if (tagSettings?.FolderTagsEnabled == true && FolderTagService.IsTaggable(folder.Path)
+                    && _settings.IsContextMenuItemVisible("FolderTag"))
                 {
                     menu.Items.Add(BuildFolderTagSubmenu(folder, host));
                 }
@@ -464,7 +469,7 @@ namespace Span.Services
             if (!isRemote && !isArchive)
             {
                 // Compress (local only)
-                menu.Items.Add(CreateItem(_loc.Get("CompressToZip"), "\uE8C5", () => host.PerformCompress(new[] { folder.Path }), "P"));
+                AddOptionalItem(menu, "CompressToZip", CreateItem(_loc.Get("CompressToZip"), "\uE8C5", () => host.PerformCompress(new[] { folder.Path }), "P"));
                 menu.Items.Add(new MenuFlyoutSeparator());
             }
 
@@ -477,19 +482,22 @@ namespace Span.Services
 
             if (!isRemote && !isArchive)
             {
-                bool isFav = host.IsFavorite(folder.Path);
-                if (isFav)
-                    menu.Items.Add(CreateItem(_loc.Get("RemoveFromFavorites"), "\uE735", () => host.RemoveFromFavorites(folder.Path), "I"));
-                else
-                    menu.Items.Add(CreateItem(_loc.Get("AddToFavorites"), "\uE734", () => host.AddToFavorites(folder.Path), "I"));
+                if (_settings.IsContextMenuItemVisible("AddToFavorites"))
+                {
+                    bool isFav = host.IsFavorite(folder.Path);
+                    if (isFav)
+                        menu.Items.Add(CreateItem(_loc.Get("RemoveFromFavorites"), "\uE735", () => host.RemoveFromFavorites(folder.Path), "I"));
+                    else
+                        menu.Items.Add(CreateItem(_loc.Get("AddToFavorites"), "\uE734", () => host.AddToFavorites(folder.Path), "I"));
+                }
                 menu.Items.Add(new MenuFlyoutSeparator());
             }
 
-            menu.Items.Add(CreateItem(_loc.Get("CopyPath"), "\uE8C8", () => host.PerformCopyPath(folder.Path), "H"));
+            AddOptionalItem(menu, "CopyPath", CreateItem(_loc.Get("CopyPath"), "\uE8C8", () => host.PerformCopyPath(folder.Path), "H"));
 
             if (!isRemote && !isArchive)
             {
-                menu.Items.Add(CreateItem(_loc.Get("OpenInExplorer"), "\uED25", () => _shellService.OpenInExplorer(folder.Path), "L"));
+                AddOptionalItem(menu, "OpenInExplorer", CreateItem(_loc.Get("OpenInExplorer"), "\uED25", () => _shellService.OpenInExplorer(folder.Path), "L"));
             }
 
             menu.Items.Add(new MenuFlyoutSeparator());
@@ -497,8 +505,10 @@ namespace Span.Services
 
             // Shell 항목: 캐시 히트 → 메뉴 표시 전 삽입 + 백그라운드 재검증
             //              캐시 미스 → await로 대기 후 삽입 (최대 1.5초)
+            CollapseSeparators(menu);
             if (!isRemote && !isArchive)
                 await AppendShellExtensionItemsAsync(menu, folder.Path, forceShellExtensions);
+            CollapseSeparators(menu);
 
             menu.Closed += OnMenuClosed;
             TrackFlyout(menu);
@@ -525,14 +535,14 @@ namespace Span.Services
             if (drive.IsRemoteConnection)
             {
                 // 원격 연결 (SFTP/FTP): 편집 + 제거
-                menu.Items.Add(CreateItem(_loc.Get("CopyPath"), "\uE8C8", () => _shellService.CopyPathToClipboard(drive.Path), "H"));
+                AddOptionalItem(menu, "CopyPath", CreateItem(_loc.Get("CopyPath"), "\uE8C8", () => _shellService.CopyPathToClipboard(drive.Path), "H"));
                 menu.Items.Add(new MenuFlyoutSeparator());
-                menu.Items.Add(CreateItem(_loc.Get("EditConnection"), "\uE70F", () =>
+                AddOptionalItem(menu, "EditConnection", CreateItem(_loc.Get("EditConnection"), "\uE70F", () =>
                 {
                     if (!string.IsNullOrEmpty(drive.ConnectionId))
                         host.EditRemoteConnection(drive.ConnectionId);
                 }, "E"));
-                menu.Items.Add(CreateItem(_loc.Get("RemoveConnection"), "\uE74D", () =>
+                AddOptionalItem(menu, "RemoveConnection", CreateItem(_loc.Get("RemoveConnection"), "\uE74D", () =>
                 {
                     if (!string.IsNullOrEmpty(drive.ConnectionId))
                         host.RemoveRemoteConnection(drive.ConnectionId);
@@ -541,8 +551,8 @@ namespace Span.Services
             else if (drive.IsCloudStorage)
             {
                 // 클라우드 스토리지: 경로 복사 + 탐색기
-                menu.Items.Add(CreateItem(_loc.Get("CopyPath"), "\uE8C8", () => _shellService.CopyPathToClipboard(drive.Path), "H"));
-                menu.Items.Add(CreateItem(_loc.Get("OpenInExplorer"), "\uED25", () => _shellService.OpenInExplorer(drive.Path), "L"));
+                AddOptionalItem(menu, "CopyPath", CreateItem(_loc.Get("CopyPath"), "\uE8C8", () => _shellService.CopyPathToClipboard(drive.Path), "H"));
+                AddOptionalItem(menu, "OpenInExplorer", CreateItem(_loc.Get("OpenInExplorer"), "\uED25", () => _shellService.OpenInExplorer(drive.Path), "L"));
             }
             else
             {
@@ -553,14 +563,14 @@ namespace Span.Services
                 // 꺼내기 (Removable / CDRom)
                 if (isRemovableOrCdrom)
                 {
-                    menu.Items.Add(CreateItem(_loc.Get("Eject"), "\uE7E7", () => host.PerformEjectDrive(drive), "J"));
+                    AddOptionalItem(menu, "Eject", CreateItem(_loc.Get("Eject"), "\uE7E7", () => host.PerformEjectDrive(drive), "J"));
                     menu.Items.Add(new MenuFlyoutSeparator());
                 }
 
                 // 연결 끊기 (Network mapped)
                 if (isNetwork)
                 {
-                    menu.Items.Add(CreateItem(_loc.Get("DisconnectDrive"), "\uE8CD", () => host.PerformDisconnectDrive(drive), "N"));
+                    AddOptionalItem(menu, "DisconnectDrive", CreateItem(_loc.Get("DisconnectDrive"), "\uE8CD", () => host.PerformDisconnectDrive(drive), "N"));
                     menu.Items.Add(new MenuFlyoutSeparator());
                 }
 
@@ -568,23 +578,24 @@ namespace Span.Services
                 if (!isNetwork)
                 {
                     var driveLetter = drive.Path.TrimEnd('\\');
-                    menu.Items.Add(CreateItem(_loc.Get("Format"), "\uEBD2", () =>
+                    AddOptionalItem(menu, "Format", CreateItem(_loc.Get("Format"), "\uEBD2", () =>
                     {
                         try { _shellService.FormatDrive(drive.Path); } catch { }
                     }));
-                    menu.Items.Add(CreateItem(_loc.Get("DiskCleanup"), "\uE74D", () =>
+                    AddOptionalItem(menu, "DiskCleanup", CreateItem(_loc.Get("DiskCleanup"), "\uE74D", () =>
                     {
                         try { System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("cleanmgr.exe", $"/d {driveLetter}") { UseShellExecute = true }); } catch { }
                     }));
                     menu.Items.Add(new MenuFlyoutSeparator());
                 }
 
-                menu.Items.Add(CreateItem(_loc.Get("CopyPath"), "\uE8C8", () => _shellService.CopyPathToClipboard(drive.Path), "H"));
-                menu.Items.Add(CreateItem(_loc.Get("OpenInExplorer"), "\uED25", () => _shellService.OpenInExplorer(drive.Path), "L"));
+                AddOptionalItem(menu, "CopyPath", CreateItem(_loc.Get("CopyPath"), "\uE8C8", () => _shellService.CopyPathToClipboard(drive.Path), "H"));
+                AddOptionalItem(menu, "OpenInExplorer", CreateItem(_loc.Get("OpenInExplorer"), "\uED25", () => _shellService.OpenInExplorer(drive.Path), "L"));
                 menu.Items.Add(new MenuFlyoutSeparator());
                 menu.Items.Add(CreateItem(_loc.Get("Properties"), "\uE946", () => _shellService.ShowProperties(drive.Path), "R"));
             }
 
+            CollapseSeparators(menu);
             TrackFlyout(menu);
             return menu;
         }
@@ -596,15 +607,18 @@ namespace Span.Services
             menu.Items.Add(CreateItem(_loc.Get("Open"), "\uE8E5", () => host.PerformOpenFavorite(fav), "O"));
             menu.Items.Add(new MenuFlyoutSeparator());
 
-            menu.Items.Add(CreateItem(_loc.Get("RemoveFromFavorites"), "\uE735", () => host.RemoveFromFavorites(fav.Path), "I"));
+            // お気に入りの削除は AddToFavorites と同じ設定で隠す
+            if (_settings.IsContextMenuItemVisible("AddToFavorites"))
+                menu.Items.Add(CreateItem(_loc.Get("RemoveFromFavorites"), "\uE735", () => host.RemoveFromFavorites(fav.Path), "I"));
             menu.Items.Add(new MenuFlyoutSeparator());
 
-            menu.Items.Add(CreateItem(_loc.Get("CopyPath"), "\uE8C8", () => _shellService.CopyPathToClipboard(fav.Path), "H"));
-            menu.Items.Add(CreateItem(_loc.Get("OpenInExplorer"), "\uED25", () => _shellService.OpenInExplorer(fav.Path), "L"));
+            AddOptionalItem(menu, "CopyPath", CreateItem(_loc.Get("CopyPath"), "\uE8C8", () => _shellService.CopyPathToClipboard(fav.Path), "H"));
+            AddOptionalItem(menu, "OpenInExplorer", CreateItem(_loc.Get("OpenInExplorer"), "\uED25", () => _shellService.OpenInExplorer(fav.Path), "L"));
             menu.Items.Add(new MenuFlyoutSeparator());
 
             menu.Items.Add(CreateItem(_loc.Get("Properties"), "\uE946", () => _shellService.ShowProperties(fav.Path), "R"));
 
+            CollapseSeparators(menu);
             TrackFlyout(menu);
             return menu;
         }
@@ -681,17 +695,20 @@ namespace Span.Services
 
             if (!isArchive && !FileSystemRouter.IsRemotePath(folderPath))
             {
-                menu.Items.Add(CreateItem(_loc.Get("OpenTerminal"), "\uE756", () => host.PerformOpenTerminal(folderPath), "E"));
+                AddOptionalItem(menu, "OpenTerminal", CreateItem(_loc.Get("OpenTerminal"), "\uE756", () => host.PerformOpenTerminal(folderPath), "E"));
             }
 
             menu.Items.Add(new MenuFlyoutSeparator());
             menu.Items.Add(CreateItem(_loc.Get("Properties") + "  Alt+Enter", "\uE946", () => host.PerformShowProperties(folderPath), "P"));
+
+            CollapseSeparators(menu);
 
             // 배경 셸 확장 (TortoiseSVN, TortoiseGit 등)
             if (!isArchive && !FileSystemRouter.IsRemotePath(folderPath))
             {
                 await AppendBackgroundShellExtensionItemsAsync(menu, folderPath, forceShellExtensions);
             }
+            CollapseSeparators(menu);
 
             // Cleanup session when menu closes
             menu.Closed += OnMenuClosed;
@@ -1592,6 +1609,45 @@ namespace Span.Services
                 Windows.UI.Color.FromArgb(255, (byte)argb.Item1, (byte)argb.Item2, (byte)argb.Item3));
         }
 
+
+        /// <summary>
+        /// 設定で隠した組み込み項目は追加しない。コア操作はここを通さない。
+        /// </summary>
+        private void AddOptionalItem(MenuFlyout menu, string id, MenuFlyoutItem item)
+        {
+            if (_settings.IsContextMenuItemVisible(id))
+                menu.Items.Add(item);
+        }
+
+        /// <summary>
+        /// 非表示で空になった区間のセパレータが連続・先頭・末尾に残らないようにする。
+        /// </summary>
+        private static void CollapseSeparators(MenuFlyout menu)
+        {
+            var items = menu.Items;
+            bool previousWasSeparator = true;
+            for (int i = 0; i < items.Count;)
+            {
+                if (items[i] is MenuFlyoutSeparator)
+                {
+                    if (previousWasSeparator)
+                    {
+                        items.RemoveAt(i);
+                        continue;
+                    }
+                    previousWasSeparator = true;
+                    i++;
+                }
+                else
+                {
+                    previousWasSeparator = false;
+                    i++;
+                }
+            }
+
+            while (items.Count > 0 && items[items.Count - 1] is MenuFlyoutSeparator)
+                items.RemoveAt(items.Count - 1);
+        }
 
         private static MenuFlyoutItem CreateItem(string text, string? glyph, Action action, string? accessKey = null)
         {

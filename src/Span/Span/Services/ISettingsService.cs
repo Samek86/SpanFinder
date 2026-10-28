@@ -100,5 +100,16 @@ namespace Span.Services
 
         // Command Palette: 최근 실행한 커맨드 ID 목록 ("|" 구분)
         string RecentCommandIds { get; set; }
+
+        /// <summary>
+        /// 非表示にする組み込みコンテキストメニュー項目 ID（カンマ区切り）。空ならすべて表示。
+        /// </summary>
+        string HiddenContextMenuItems { get; set; }
+
+        /// <summary>組み込みメニュー項目を表示するか。未設定の ID は表示。</summary>
+        bool IsContextMenuItemVisible(string id);
+
+        /// <summary>組み込みメニュー項目の表示を切り替え、SettingChanged を発火する。</summary>
+        void SetContextMenuItemVisible(string id, bool visible);
     }
 }

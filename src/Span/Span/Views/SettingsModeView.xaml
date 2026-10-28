@@ -1791,6 +1791,26 @@
                                 </Grid>
                             </Border>
 
+                            <!-- Built-in context menu item visibility -->
+                            <Border Style="{StaticResource SettingsCardBorder}">
+                                <StackPanel Spacing="8">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto" />
+                                            <ColumnDefinition Width="*" />
+                                        </Grid.ColumnDefinitions>
+                                        <Border Grid.Column="0" Style="{StaticResource CardIconContainer}">
+                                            <FontIcon Glyph="&#xE712;" Style="{StaticResource CardIconStyle}" />
+                                        </Border>
+                                        <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
+                                            <TextBlock x:Name="CtxMenuItemsLabel" Text="메뉴 항목 표시" Style="{StaticResource SettingsCardLabel}" />
+                                            <TextBlock x:Name="CtxMenuItemsDesc" Text="표시할 기본 우클릭 메뉴 항목을 선택합니다" Style="{StaticResource SettingsCardDesc}" />
+                                        </StackPanel>
+                                    </Grid>
+                                    <StackPanel x:Name="ContextMenuItemsPanel" Spacing="2" Margin="48,4,0,0" />
+                                </StackPanel>
+                            </Border>
+
                             <!-- Context Menu Integration -->
                             <Border Style="{StaticResource SettingsCardBorder}">
                                 <Grid>

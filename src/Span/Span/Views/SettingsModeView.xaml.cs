@@ -37,6 +37,7 @@ public sealed partial class SettingsModeView : UserControl
     private DispatcherTimer? _updateTimer;
     private int _updateStage;
     private bool _isLoading = true;
+    private bool _syncingContextMenuItems;
     // 절대값 기반 스케일 (MainWindow.BaselineFontSizes 사용) — _previousScaleLevel 불필요
 
     // Shortcuts editor state
@@ -282,6 +283,7 @@ public sealed partial class SettingsModeView : UserControl
             FileHashToggle.IsOn = _settings.ShowFileHash;
             CopilotMenuToggle.IsOn = _settings.ShowCopilotMenu;
             ContextMenuToggle.IsOn = _settings.ShowContextMenu;
+            RebuildContextMenuItemChecks();
             CrashReportToggle.IsOn = _settings.EnableCrashReporting;
             IsolatedThumbsToggle.IsOn = _settings.UseIsolatedThumbnails;
 
@@ -319,6 +321,45 @@ public sealed partial class SettingsModeView : UserControl
         {
             _isLoading = false;
         }
+    }
+
+    /// <summary>
+    /// 組み込みメニュー項目ごとの表示チェックを作り直す。チェック＝表示。
+    /// </summary>
+    private void RebuildContextMenuItemChecks()
+    {
+        if (ContextMenuItemsPanel == null) return;
+        _syncingContextMenuItems = true;
+        try
+        {
+            ContextMenuItemsPanel.Children.Clear();
+            foreach (var (id, locKey) in Services.ContextMenuItemSettings.ToggleableItems)
+            {
+                var check = new CheckBox
+                {
+                    Content = _loc?.Get(locKey) ?? locKey,
+                    IsChecked = _settings.IsContextMenuItemVisible(id),
+                    Tag = id,
+                    HorizontalAlignment = HorizontalAlignment.Stretch,
+                    Margin = new Thickness(0, 1, 0, 1),
+                };
+                check.Checked += OnContextMenuItemChecked;
+                check.Unchecked += OnContextMenuItemChecked;
+                Helpers.CursorHelper.SetHandCursor(check);
+                ContextMenuItemsPanel.Children.Add(check);
+            }
+        }
+        finally
+        {
+            _syncingContextMenuItems = false;
+        }
+    }
+
+    private void OnContextMenuItemChecked(object sender, RoutedEventArgs e)
+    {
+        if (_isLoading || _syncingContextMenuItems) return;
+        if (sender is CheckBox check && check.Tag is string id)
+            _settings.SetContextMenuItemVisible(id, check.IsChecked == true);
     }
 
     // ── Wire UI events to save settings ──
@@ -809,6 +850,9 @@ public sealed partial class SettingsModeView : UserControl
             CopilotDesc.Text = _loc.Get("Settings_CopilotMenuDesc");
             CtxMenuLabel.Text = _loc.Get("Settings_ContextMenu");
             CtxMenuDesc.Text = _loc.Get("Settings_ContextMenuDesc");
+            CtxMenuItemsLabel.Text = _loc.Get("Settings_ContextMenuItems");
+            CtxMenuItemsDesc.Text = _loc.Get("Settings_ContextMenuItemsDesc");
+            RebuildContextMenuItemChecks();
 
             // Shortcuts
             ShortcutsTitle.Text = _loc.Get("Settings_Shortcuts") ?? "단축키";

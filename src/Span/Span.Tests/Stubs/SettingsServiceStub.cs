@@ -92,4 +92,16 @@ public class SettingsServiceStub : ISettingsService
     public bool ShelfEnabled { get; set; } = true;
 
     public string RecentCommandIds { get; set; } = string.Empty;
+
+    public string HiddenContextMenuItems
+    {
+        get => Get(ContextMenuItemSettings.StorageKey, "");
+        set => Set(ContextMenuItemSettings.StorageKey, value ?? "");
+    }
+
+    public bool IsContextMenuItemVisible(string id)
+        => ContextMenuItemSettings.IsVisible(HiddenContextMenuItems, id);
+
+    public void SetContextMenuItemVisible(string id, bool visible)
+        => HiddenContextMenuItems = ContextMenuItemSettings.SetVisible(HiddenContextMenuItems, id, visible);
 }

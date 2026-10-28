@@ -345,6 +345,8 @@ namespace Span.Services
                 ["Settings_CopilotMenuDesc"] = "Pokazuj elementy Microsoft Copilot w menu kontekstowym",
                 ["Settings_ContextMenu"] = "Menu kontekstowe",
                 ["Settings_ContextMenuDesc"] = "Dodaj „Otwórz w SPAN” do menu kontekstowego systemu Windows",
+                ["Settings_ContextMenuItems"] = "Widoczność elementów menu",
+                ["Settings_ContextMenuItemsDesc"] = "Wybierz, które wbudowane elementy menu kontekstowego są widoczne. Otwórz, Wytnij, Kopiuj, Wklej, Usuń, Zmień nazwę i Właściwości pozostają zawsze widoczne.",
                 ["Settings_CheckUpdate"] = "Sprawdź aktualizacje",
                 ["Settings_Checking"] = "Sprawdzanie…",
                 ["Settings_UpToDate"] = "Masz najnowszą wersję",
