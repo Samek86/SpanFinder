@@ -1,3 +1,4 @@
+using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media;
@@ -119,7 +120,7 @@ namespace Span
             titleBar.ButtonBackgroundColor = Windows.UI.Color.FromArgb(0, 0, 0, 0);
             titleBar.ButtonInactiveBackgroundColor = Windows.UI.Color.FromArgb(0, 0, 0, 0);
 
-            // DWM 윈도우 보더 색상 → 테마 배경색에 맞춰 최대화 시 흰색 라인 방지
+            // DWM 枠色。復元時は控えめな 1px、最大化時は背景色（白い 1px 線を避ける）
             UpdateDwmBorderColor(theme, isCustom);
 
             // 코드-비하인드에서 생성된 캐시 요소들 (인디케이터, 버튼 등) 테마 색상 갱신
@@ -192,36 +193,150 @@ namespace Span
         // 대신 IsActive 토글로 바인딩 재평가 방식 사용 (RefreshCachedAccentColors 참조).
 
         /// <summary>
-        /// DWM 윈도우 프레임 보더 색상을 현재 테마 배경에 맞춘다.
-        /// 최대화 시 1px 흰색 라인이 보이는 WinUI 3 이슈를 방지한다.
+        /// 最大化 / 復元 / プレゼンター切替で DWM 枠色を更新する。
+        /// OverlappedPresenter に StateChanged はないため、AppWindow.Changed と WM_SIZE から呼ぶ。
+        /// </summary>
+        private void HookDwmBorderUpdates()
+        {
+            try
+            {
+                this.AppWindow.Changed -= OnAppWindowFrameChanged;
+                this.AppWindow.Changed += OnAppWindowFrameChanged;
+            }
+            catch (Exception ex)
+            {
+                Helpers.DebugLogger.Log($"[MainWindow] HookDwmBorderUpdates error: {ex.Message}");
+            }
+        }
+
+        private void UnhookDwmBorderUpdates()
+        {
+            try { this.AppWindow.Changed -= OnAppWindowFrameChanged; }
+            catch (Exception ex) { Helpers.DebugLogger.Log($"[MainWindow] UnhookDwmBorderUpdates error: {ex.Message}"); }
+        }
+
+        private void OnAppWindowFrameChanged(AppWindow sender, AppWindowChangedEventArgs args)
+        {
+            // 最大化はサイズ変化、F11 はプレゼンター変化として届く
+            if (args.DidSizeChange || args.DidPresenterChange)
+                UpdateDwmBorderForCurrentTheme();
+        }
+
+        /// <summary>
+        /// 保存済みテーマで枠色を描き直す。
+        /// </summary>
+        private void UpdateDwmBorderForCurrentTheme()
+        {
+            try
+            {
+                var theme = _settings.Theme;
+                UpdateDwmBorderColor(theme, _customThemes.Contains(theme));
+            }
+            catch (Exception ex)
+            {
+                Helpers.DebugLogger.Log($"[MainWindow] UpdateDwmBorderForCurrentTheme error: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// 復元中なら控えめな 1px 枠、最大化中は背景色にする。
+        /// キャプション色は常に背景のまま（カスタムタイトルバー上端の白線対策）。
+        /// DWM の COLORREF はアルファを無視するので、枠色は不透明にする。
         /// </summary>
         private void UpdateDwmBorderColor(string theme, bool isCustom)
         {
             if (_hwnd == IntPtr.Zero) return;
 
-            Windows.UI.Color bgColor;
+            bool isLight = IsLightFrameTheme(theme, isCustom);
+            var bgColor = ResolveWindowBackground(theme, isCustom, isLight);
+            var frameColor = IsWindowMaximized()
+                ? bgColor
+                : ResolveSubtleFrameColor(theme, isCustom, bgColor, isLight);
+
+            int frameRef = ToColorRef(frameColor);
+            int captionRef = ToColorRef(bgColor);
+            Helpers.NativeMethods.DwmSetWindowAttribute(
+                _hwnd, Helpers.NativeMethods.DWMWA_BORDER_COLOR, ref frameRef, sizeof(int));
+            Helpers.NativeMethods.DwmSetWindowAttribute(
+                _hwnd, Helpers.NativeMethods.DWMWA_CAPTION_COLOR, ref captionRef, sizeof(int));
+        }
+
+        private bool IsWindowMaximized()
+        {
+            try
+            {
+                if (_hwnd != IntPtr.Zero && IsZoomed(_hwnd))
+                    return true;
+                if (this.AppWindow.Presenter is OverlappedPresenter presenter)
+                    return presenter.State == OverlappedPresenterState.Maximized;
+            }
+            catch (Exception ex)
+            {
+                Helpers.DebugLogger.Log($"[MainWindow] IsWindowMaximized error: {ex.Message}");
+            }
+            return false;
+        }
+
+        private static bool IsLightFrameTheme(string theme, bool isCustom)
+        {
+            if (isCustom)
+                return theme == "solarized-light";
+            return theme == "light" ||
+                   (theme == "system" && App.Current.RequestedTheme == ApplicationTheme.Light);
+        }
+
+        private static Windows.UI.Color ResolveWindowBackground(string theme, bool isCustom, bool isLight)
+        {
+            if (isCustom)
+                return GetThemePalette(theme).bgMica;
+            return isLight
+                ? Windows.UI.Color.FromArgb(255, 243, 243, 243)   // #F3F3F3
+                : Windows.UI.Color.FromArgb(255, 32, 32, 32);     // #202020
+        }
+
+        /// <summary>
+        /// ライトは背景より少し暗いグレー、ダークは少し明るいグレー。
+        /// カスタムテーマは SpanBorderSubtle 相当の border を背景へ合成する。
+        /// </summary>
+        private static Windows.UI.Color ResolveSubtleFrameColor(string theme, bool isCustom, Windows.UI.Color bg, bool isLight)
+        {
             if (isCustom)
             {
-                var p = GetThemePalette(theme);
-                bgColor = p.bgMica;
+                var blended = CompositeOver(GetThemePalette(theme).border, bg);
+                if (ChannelDistance(blended, bg) >= 24)
+                    return blended;
             }
-            else
-            {
-                bool isLight = theme == "light" ||
-                               (theme == "system" && App.Current.RequestedTheme == ApplicationTheme.Light);
-                bgColor = isLight
-                    ? Windows.UI.Color.FromArgb(255, 243, 243, 243)   // #F3F3F3
-                    : Windows.UI.Color.FromArgb(255, 32, 32, 32);     // #202020
-            }
-
-            // COLORREF = 0x00BBGGRR (BGR 순서)
-            int colorRef = bgColor.R | (bgColor.G << 8) | (bgColor.B << 16);
-            Helpers.NativeMethods.DwmSetWindowAttribute(
-                _hwnd, Helpers.NativeMethods.DWMWA_BORDER_COLOR, ref colorRef, sizeof(int));
-            // 캡션(타이틀바) 색상도 동일하게 설정 — 최대화 시 상단 흰색 라인 방지
-            Helpers.NativeMethods.DwmSetWindowAttribute(
-                _hwnd, Helpers.NativeMethods.DWMWA_CAPTION_COLOR, ref colorRef, sizeof(int));
+            return ShiftFrame(bg, towardDark: isLight);
         }
+
+        private static Windows.UI.Color CompositeOver(Windows.UI.Color fg, Windows.UI.Color bg)
+        {
+            float a = fg.A / 255f;
+            if (a >= 0.999f)
+                return Windows.UI.Color.FromArgb(255, fg.R, fg.G, fg.B);
+            static byte Blend(byte front, byte back, float alpha)
+                => (byte)Math.Clamp((int)Math.Round(front * alpha + back * (1f - alpha)), 0, 255);
+            return Windows.UI.Color.FromArgb(255, Blend(fg.R, bg.R, a), Blend(fg.G, bg.G, a), Blend(fg.B, bg.B, a));
+        }
+
+        private static int ChannelDistance(Windows.UI.Color a, Windows.UI.Color b)
+        {
+            int dr = Math.Abs(a.R - b.R);
+            int dg = Math.Abs(a.G - b.G);
+            int db = Math.Abs(a.B - b.B);
+            return Math.Max(dr, Math.Max(dg, db));
+        }
+
+        /// <summary>背景からコントラストを付ける。ライトは -36、ダークは +42。</summary>
+        private static Windows.UI.Color ShiftFrame(Windows.UI.Color bg, bool towardDark)
+        {
+            int delta = towardDark ? -36 : 42;
+            static byte Clamp(int v) => (byte)Math.Clamp(v, 0, 255);
+            return Windows.UI.Color.FromArgb(255, Clamp(bg.R + delta), Clamp(bg.G + delta), Clamp(bg.B + delta));
+        }
+
+        private static int ToColorRef(Windows.UI.Color color)
+            => color.R | (color.G << 8) | (color.B << 16);
 
         internal static void ApplyCustomThemeOverrides(FrameworkElement root, string theme)
         {
