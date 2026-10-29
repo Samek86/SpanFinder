@@ -330,6 +330,8 @@ namespace Span.Services
             _loc = localizationService;
             _settings = settingsService;
             _shellNewService = shellNewService;
+            // メニューを開く前にカタログを温めておく。失敗しても項目は出し、絞り込みだけ遅れる。
+            ShellExtensionRegistry.StartScanInBackground();
         }
 
         public async Task<MenuFlyout> BuildFileMenuAsync(FileViewModel file, IContextMenuHost host, bool forceShellExtensions = false)
@@ -816,14 +818,58 @@ namespace Span.Services
             if (_currentSession == null || _currentSession.Items.Count == 0)
                 return;
 
-            InsertShellItemsToMenu(menu, _currentSession.Items);
+            var scope = ShellMenuScopeFor(path, background);
+            InsertShellItemsToMenu(menu, _currentSession.Items, scope);
             Helpers.DebugLogger.Log($"[ContextMenuService] Shell items inserted: menu.Items.Count={menu.Items.Count}");
         }
 
+        /// <summary>
+        /// 無効にしたシェル拡張の項目を落とす。標準 verb は残す。
+        /// 一致した文は覚え、次のメニューと設定の説明行に使う。
+        /// </summary>
+        private IList<ShellMenuItem> ApplyShellExtensionFilter(IList<ShellMenuItem> shellItems, byte scope)
+        {
+            try
+            {
+                var learned = ShellExtensionCatalogue.ParseMap(_settings.ShellExtensionCtxLabels);
+                var visible = ShellExtensionCatalogue.FilterShellItems(
+                    shellItems,
+                    scope,
+                    ShellExtensionRegistry.TryGetCached(),
+                    ShellExtensionCatalogue.ParseMap(_settings.ShellExtensionCtxOff),
+                    learned,
+                    out var changed);
+                if (changed)
+                    _settings.ShellExtensionCtxLabels = ShellExtensionCatalogue.SerializeMap(learned);
+                return visible;
+            }
+            catch (Exception ex)
+            {
+                Helpers.DebugLogger.Log($"[ContextMenuService] Shell extension filter failed: {ex.GetType().Name}: {ex.Message}");
+                return shellItems;
+            }
+        }
+
+        /// <summary>このクリックの対象。背景は空白、ドライブ直下はドライブ。</summary>
+        private static byte ShellMenuScopeFor(string path, bool background)
+        {
+            if (background) return ShellMenuScope.Background;
+            var isFile = false;
+            try
+            {
+                isFile = System.IO.File.Exists(path) && !System.IO.Directory.Exists(path);
+            }
+            catch { }
+            return ShellMenuScope.ForClick(path, isFile, background: false);
+        }
+
         /// <summary>Shell 항목 목록을 필터링/그룹핑하여 메뉴에 삽입</summary>
-        private void InsertShellItemsToMenu(MenuFlyout menu, IList<ShellMenuItem> shellItems)
+        private void InsertShellItemsToMenu(MenuFlyout menu, IList<ShellMenuItem> shellItems, byte scope)
         {
             // 개발자 메뉴 필터 제거 — 셸 확장 ON이면 모든 항목 표시 (v1.2.13.0)
+            // サードパーティの無効化は SpanFinder のメニューだけ。標準 verb は残す。
+            shellItems = ApplyShellExtensionFilter(shellItems, scope);
+
             bool showDevMenu = true;
             bool showShellExtras = _settings.ShowWindowsShellExtras;
             bool showCopilot = _settings.ShowCopilotMenu;

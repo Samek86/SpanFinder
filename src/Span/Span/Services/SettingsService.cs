@@ -366,6 +366,40 @@ public class SettingsService : ISettingsService
     public void SetContextMenuItemVisible(string id, bool visible)
         => HiddenContextMenuItems = ContextMenuItemSettings.SetVisible(HiddenContextMenuItems, id, visible);
 
+    /// <summary>無効化したシェル拡張スコープ。空ならすべて有効。エクスプローラーは変更しない。</summary>
+    public string ShellExtensionCtxOff
+    {
+        get => Get(ShellExtensionCatalogue.OffStorageKey, "");
+        set => Set(ShellExtensionCatalogue.OffStorageKey, value ?? "");
+    }
+
+    /// <summary>メニューに実際に出たキャプション。設定行の説明と、次回の絞り込みに使う。</summary>
+    public string ShellExtensionCtxLabels
+    {
+        get => Get(ShellExtensionCatalogue.LabelsStorageKey, "");
+        set => Set(ShellExtensionCatalogue.LabelsStorageKey, value ?? "");
+    }
+
+    public bool IsShellExtensionEnabled(string id, byte scopeBit)
+        => ShellExtensionCatalogue.IsEnabled(ShellExtensionCatalogue.ParseMap(ShellExtensionCtxOff), id, scopeBit);
+
+    public void SetShellExtensionEnabled(string id, byte scopeBit, bool enabled)
+    {
+        var map = ShellExtensionCatalogue.ParseMap(ShellExtensionCtxOff);
+        ShellExtensionCatalogue.SetScope(map, id, scopeBit, enabled);
+        ShellExtensionCtxOff = ShellExtensionCatalogue.SerializeMap(map);
+    }
+
+    public void ResetAllShellExtensionsEnabled()
+        => ShellExtensionCtxOff = "";
+
+    public IReadOnlyList<ShellUiRow> GetShellExtensionUiRows()
+        => ShellExtensionCatalogue.Assemble(
+            ShellExtensionRegistry.GetOrScan(),
+            ShellExtensionCatalogue.ParseMap(ShellExtensionCtxOff),
+            ShellExtensionCatalogue.ParseMap(ShellExtensionCtxLabels),
+            "");
+
     // ── General ──
 
     public int StartupBehavior

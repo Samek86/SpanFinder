@@ -361,6 +361,22 @@
                             <TextBlock Grid.Column="1" Text="고급" FontSize="13"
                                        VerticalAlignment="Center"/>
                         </Grid>
+                        <!-- 右クリックメニュー項目。組み込みチェックとは別ページ -->
+                        <Grid x:Name="NavContextMenu" Height="28" Padding="12,0" Tag="ContextMenu"
+                              Background="Transparent"
+                              Tapped="OnNavItemTapped"
+                              PointerEntered="OnNavItemPointerEntered" PointerExited="OnNavItemPointerExited"
+                              helpers:CursorHelper.IsHandCursor="True">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <FontIcon Grid.Column="0" Glyph="&#xE712;" FontSize="16"
+                                      Foreground="{ThemeResource SpanTextSecondaryBrush}"
+                                      VerticalAlignment="Center" Margin="0,0,12,0"/>
+                            <TextBlock Grid.Column="1" Text="右クリックメニュー項目" FontSize="13"
+                                       TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
+                        </Grid>
                         <Rectangle Height="1" Fill="{ThemeResource SpanBorderSubtleBrush}" Margin="12,12"/>
                         <Grid x:Name="NavAbout" Height="28" Padding="12,0" Tag="About"
                               Background="Transparent"
@@ -2085,6 +2101,25 @@
                                 </Grid>
                             </Border>
 
+                        </StackPanel>
+                    </ScrollViewer>
+
+                    <!-- ===== 右クリックメニュー項目 ===== -->
+                    <ScrollViewer x:Name="ContextMenuSection" Visibility="Collapsed">
+                        <StackPanel Padding="20" Spacing="0">
+                            <TextBlock x:Name="ContextMenuTitle" Text="右クリックメニュー項目" Style="{StaticResource SettingsSectionTitle}" />
+                            <TextBlock x:Name="ContextMenuDesc"
+                                       Text="SpanFinder の右クリックメニューに出る項目です。開く、コピー、プロパティなどの Windows の項目はそのままです。新しい項目はオンで始まります。エクスプローラーは変わりません。"
+                                       Style="{StaticResource SettingsCardDesc}" Margin="0,0,0,12" />
+                            <Button x:Name="ContextMenuResetButton" Content="すべて有効に戻す"
+                                    HorizontalAlignment="Right" MinWidth="160" Margin="0,0,0,12"
+                                    Click="OnShellExtensionReset"
+                                    helpers:CursorHelper.IsHandCursor="True" />
+                            <TextBlock x:Name="ContextMenuLoadingText" Text="読み込み中…"
+                                       Style="{StaticResource SettingsCardDesc}" Margin="0,4,0,8" Visibility="Collapsed" />
+                            <TextBlock x:Name="ContextMenuEmptyText" Text="サードパーティの項目はありません"
+                                       Style="{StaticResource SettingsCardDesc}" Margin="0,4,0,8" Visibility="Collapsed" />
+                            <StackPanel x:Name="ShellExtensionRowsPanel" Spacing="0" />
                         </StackPanel>
                     </ScrollViewer>
 

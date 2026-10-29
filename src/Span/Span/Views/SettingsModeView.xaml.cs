@@ -71,6 +71,7 @@ public sealed partial class SettingsModeView : UserControl
             ToolsSection,
             ShortcutsSection,
             AdvancedSection,
+            ContextMenuSection,
             SupportSection,
             AboutSection,
             OpenSourceSection
@@ -78,7 +79,7 @@ public sealed partial class SettingsModeView : UserControl
         _navItems = new Grid[]
         {
             NavGeneral, NavAppearance, NavBrowsing, NavSidebar, NavTools, NavShortcuts,
-            NavAdvanced, NavAbout, NavOpenSource
+            NavAdvanced, NavContextMenu, NavAbout, NavOpenSource
         };
         _selectedNavItem = NavGeneral;
 
@@ -102,6 +103,8 @@ public sealed partial class SettingsModeView : UserControl
                     if (_shortcutsLoaded && ShortcutItemsPanel != null)
                         RebuildShortcutItemsUI();
                 });
+            if (_shellHandlers != null)
+                DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, RenderShellExtensionRowsFromCache);
         };
     }
 
@@ -630,6 +633,7 @@ public sealed partial class SettingsModeView : UserControl
             "Tools" => ToolsSection,
             "Shortcuts" => ShortcutsSection,
             "Advanced" => AdvancedSection,
+            "ContextMenu" => ContextMenuSection,
             "Support" => SupportSection,
             "About" => AboutSection,
             "OpenSource" => OpenSourceSection,
@@ -640,6 +644,8 @@ public sealed partial class SettingsModeView : UserControl
 
         if (tag == "Shortcuts")
             LoadShortcutsSection();
+        if (tag == "ContextMenu")
+            LoadShellExtensionPage();
     }
 
     // ── Language change restart notice ──
@@ -693,6 +699,7 @@ public sealed partial class SettingsModeView : UserControl
             SetNavText(NavTools, _loc.Get("Settings_Tools"));
             SetNavText(NavShortcuts, _loc.Get("Settings_Shortcuts") ?? "단축키");
             SetNavText(NavAdvanced, _loc.Get("Settings_Advanced"));
+            SetNavText(NavContextMenu, _loc.Get("Settings_RightClickMenu"));
             SetNavText(NavSupport, _loc.Get("Settings_SupportNav") ?? "Support");
             SetNavText(NavAbout, _loc.Get("Settings_AboutNav"));
             SetNavText(NavOpenSource, _loc.Get("Settings_OpenSourceNav"));
@@ -853,6 +860,7 @@ public sealed partial class SettingsModeView : UserControl
             CtxMenuItemsLabel.Text = _loc.Get("Settings_ContextMenuItems");
             CtxMenuItemsDesc.Text = _loc.Get("Settings_ContextMenuItemsDesc");
             RebuildContextMenuItemChecks();
+            LocalizeShellExtensionPage();
 
             // Shortcuts
             ShortcutsTitle.Text = _loc.Get("Settings_Shortcuts") ?? "단축키";
@@ -1067,7 +1075,7 @@ public sealed partial class SettingsModeView : UserControl
         double navText = 13.0 + level;
         double navIcon = 16.0 + level;
         Grid[] navItems = { NavGeneral, NavAppearance, NavBrowsing, NavSidebar,
-                            NavTools, NavShortcuts, NavAdvanced, NavAbout, NavSupport, NavOpenSource };
+                            NavTools, NavShortcuts, NavAdvanced, NavContextMenu, NavAbout, NavSupport, NavOpenSource };
         foreach (var nav in navItems)
         {
             foreach (var child in nav.Children)

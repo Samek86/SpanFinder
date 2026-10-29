@@ -103,6 +103,8 @@
     <!-- Services - settings interface + Shelf (Shelf는 partial로 WinUI 의존 분리) -->
     <Compile Include="..\Span\Services\ISettingsService.cs" Link="Sources\Services\ISettingsService.cs" />
     <Compile Include="..\Span\Services\ContextMenuItemSettings.cs" Link="Sources\Services\ContextMenuItemSettings.cs" />
+    <Compile Include="..\Span\Services\ShellExtensionCatalogue.cs" Link="Sources\Services\ShellExtensionCatalogue.cs" />
+    <Compile Include="..\Span\Services\ShellExtensionRegistry.cs" Link="Sources\Services\ShellExtensionRegistry.cs" />
     <Compile Include="..\Span\Services\ShelfService.cs" Link="Sources\Services\ShelfService.cs" />
     <!-- Services - key bindings (Windows.System.VirtualKey 사용 — Windows SDK만 필요) -->
     <Compile Include="..\Span\Services\KeyBindingService.cs" Link="Sources\Services\KeyBindingService.cs" />

@@ -945,6 +945,15 @@ namespace Span.Services
                 ["Settings_DefaultViewModeDesc"] = "Widok używany po otwarciu folderu, gdy nie ma wcześniej używanego widoku.",
                 ["Settings_AutoFitColumn"] = "Automatycznie dopasuj szerokość kolumn",
                 ["Settings_AutoFitColumnDesc"] = "Automatycznie rozszerza kolumny Millera do długości nazw folderów i plików.",
+                ["Settings_RightClickMenu"] = "Elementy menu po kliknięciu prawym przyciskiem",
+                ["Settings_RightClickMenuDesc"] = "Te elementy pojawiają się w menu po kliknięciu prawym przyciskiem w SpanFinder. Elementy Windows, takie jak Otwórz, Kopiuj i Właściwości, pozostają. Nowy element startuje włączony. Eksplorator się nie zmienia.",
+                ["Settings_RightClickMenuReset"] = "Włącz wszystkie ponownie",
+                ["Settings_RightClickMenuEmpty"] = "Brak elementów menu innych firm",
+                ["Settings_RightClickMenuLoading"] = "Wczytywanie…",
+                ["CtxScope_File"] = "Plik",
+                ["CtxScope_Folder"] = "Folder",
+                ["CtxScope_Empty"] = "Puste miejsce",
+                ["CtxScope_Drive"] = "Dysk",
             };
         }
     }
