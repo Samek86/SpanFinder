@@ -100,5 +100,34 @@ namespace Span.Services
 
         // Command Palette: 최근 실행한 커맨드 ID 목록 ("|" 구분)
         string RecentCommandIds { get; set; }
+
+        /// <summary>
+        /// 非表示にする組み込みコンテキストメニュー項目 ID（カンマ区切り）。空ならすべて表示。
+        /// </summary>
+        string HiddenContextMenuItems { get; set; }
+
+        /// <summary>組み込みメニュー項目を表示するか。未設定の ID は表示。</summary>
+        bool IsContextMenuItemVisible(string id);
+
+        /// <summary>組み込みメニュー項目の表示を切り替え、SettingChanged を発火する。</summary>
+        void SetContextMenuItemVisible(string id, bool visible);
+
+        /// <summary>無効化したシェル拡張。JSON（id → file/folder/background/drive）。空ならすべて有効。</summary>
+        string ShellExtensionCtxOff { get; set; }
+
+        /// <summary>実メニューから覚えたシェル拡張のキャプション。JSON（id → 文字列配列）。</summary>
+        string ShellExtensionCtxLabels { get; set; }
+
+        /// <summary>そのハンドラのスコープが有効か。未登録はオン。</summary>
+        bool IsShellExtensionEnabled(string id, byte scopeBit);
+
+        /// <summary>ハンドラ 1 件のスコープを即時保存する。</summary>
+        void SetShellExtensionEnabled(string id, byte scopeBit, bool enabled);
+
+        /// <summary>シェル拡張の無効化をすべて消す。新しい項目も含め全部オンに戻す。</summary>
+        void ResetAllShellExtensionsEnabled();
+
+        /// <summary>インストール済み拡張をアプリ単位にまとめた設定行。レジストリ走査を含む。</summary>
+        IReadOnlyList<ShellUiRow> GetShellExtensionUiRows();
     }
 }

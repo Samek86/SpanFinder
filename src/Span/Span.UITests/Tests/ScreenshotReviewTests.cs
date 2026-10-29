@@ -35,7 +35,7 @@ public class ScreenshotReviewTests
 
     // Settings nav items: x:Name values for NavigationViewItem
     private static readonly string[] SettingsNavItems =
-        { "NavGeneral", "NavAppearance", "NavBrowsing", "NavTools", "NavAdvanced", "NavAbout", "NavOpenSource" };
+        { "NavGeneral", "NavAppearance", "NavBrowsing", "NavTools", "NavAdvanced", "NavContextMenu", "NavAbout", "NavOpenSource" };
 
     [TestMethod]
     public void CaptureAllLanguages()

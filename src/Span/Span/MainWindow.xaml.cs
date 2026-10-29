@@ -43,6 +43,7 @@ namespace Span
         // --- WM_DEVICECHANGE P/Invoke for USB hotplug detection ---
         private const int WM_DEVICECHANGE = 0x0219;
         private const int DBT_DEVNODES_CHANGED = 0x0007;
+        private const int WM_SIZE = 0x0005;
 
         private delegate IntPtr SUBCLASSPROC(IntPtr hWnd, uint uMsg, IntPtr wParam, IntPtr lParam, IntPtr uIdSubclass, IntPtr dwRefData);
 
@@ -808,6 +809,8 @@ namespace Span
 
             // Apply saved settings
             ApplyTheme(_settings.Theme);
+            // 最大化と復元で外周 1px の色を切り替える
+            HookDwmBorderUpdates();
             ApplyFontFamily(_settings.FontFamily);
             ApplyDensity(_settings.Density);
             ApplyIconFontScale(_settings.IconFontScale);
@@ -1573,6 +1576,7 @@ namespace Span
                 // STEP 6: Remove window subclass for device change
                 try
                 {
+                    UnhookDwmBorderUpdates();
                     if (_subclassProc != null)
                     {
                         RemoveWindowSubclass(_hwnd, _subclassProc, IntPtr.Zero);
@@ -1623,6 +1627,13 @@ namespace Span
                 _deviceChangeDebounceTimer?.Stop();
                 _deviceChangeDebounceTimer?.Start();
                 Helpers.DebugLogger.Log("[MainWindow] WM_DEVICECHANGE: Device change detected");
+            }
+            else if (uMsg == WM_SIZE)
+            {
+                // SIZE_RESTORED=0 / SIZE_MAXIMIZED=2。ドラッグ中の RESTORED でも同じ色を描くだけ
+                int sizeType = unchecked((int)wParam.ToInt64());
+                if (sizeType == 0 || sizeType == 2)
+                    UpdateDwmBorderForCurrentTheme();
             }
             return DefSubclassProc(hWnd, uMsg, wParam, lParam);
         }

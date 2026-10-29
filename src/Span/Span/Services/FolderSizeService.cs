@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
@@ -98,11 +99,60 @@ namespace Span.Services
         }
 
         /// <summary>
-        /// 특정 폴더의 캐시 무효화.
+        /// 指定フォルダのキャッシュを無効化する。進行中の計算はキャンセルし、
+        /// 古い結果が後からキャッシュへ書き戻されないようにする。
+        /// CTS の破棄は計算タスクの finally に任せる。
         /// </summary>
         public void Invalidate(string folderPath)
         {
+            if (string.IsNullOrEmpty(folderPath)) return;
+            CancelPending(folderPath);
             _cache.TryRemove(folderPath, out _);
+        }
+
+        /// <summary>
+        /// 指定フォルダ自身と、その配下にキャッシュされた子孫パスをまとめて無効化する。
+        /// </summary>
+        public void InvalidateUnder(string folderPath)
+        {
+            if (string.IsNullOrEmpty(folderPath)) return;
+            Invalidate(folderPath);
+
+            var trimmed = folderPath.TrimEnd('\\', '/');
+            var prefixBack = trimmed + "\\";
+            var prefixFwd = trimmed + "/";
+
+            // 列挙中に削除しない
+            var cached = new List<string>();
+            foreach (var key in _cache.Keys)
+            {
+                if (IsUnder(key, prefixBack, prefixFwd))
+                    cached.Add(key);
+            }
+            foreach (var key in cached)
+                Invalidate(key);
+
+            var pending = new List<string>();
+            foreach (var key in _pending.Keys)
+            {
+                if (IsUnder(key, prefixBack, prefixFwd))
+                    pending.Add(key);
+            }
+            foreach (var key in pending)
+                CancelPending(key);
+        }
+
+        private static bool IsUnder(string path, string prefixBack, string prefixFwd)
+            => path.StartsWith(prefixBack, StringComparison.OrdinalIgnoreCase)
+               || path.StartsWith(prefixFwd, StringComparison.OrdinalIgnoreCase);
+
+        /// <summary>進行中の計算を止める。CTS はタスク側で破棄する。</summary>
+        private void CancelPending(string folderPath)
+        {
+            if (_pending.TryGetValue(folderPath, out var cts))
+            {
+                try { cts.Cancel(); } catch { }
+            }
         }
 
         private static long CalculateFolderSize(string path, int depth, CancellationToken token)

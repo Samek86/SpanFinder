@@ -1677,6 +1677,8 @@ namespace Span
             {
                 this.AppWindow.SetPresenter(AppWindowPresenterKind.Default);
             }
+            // 全画面から戻したとき、復元状態の枠色を描き直す
+            UpdateDwmBorderForCurrentTheme();
         }
 
         #endregion

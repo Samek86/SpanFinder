@@ -37,6 +37,7 @@ public sealed partial class SettingsModeView : UserControl
     private DispatcherTimer? _updateTimer;
     private int _updateStage;
     private bool _isLoading = true;
+    private bool _syncingContextMenuItems;
     // 절대값 기반 스케일 (MainWindow.BaselineFontSizes 사용) — _previousScaleLevel 불필요
 
     // Shortcuts editor state
@@ -70,6 +71,7 @@ public sealed partial class SettingsModeView : UserControl
             ToolsSection,
             ShortcutsSection,
             AdvancedSection,
+            ContextMenuSection,
             SupportSection,
             AboutSection,
             OpenSourceSection
@@ -77,7 +79,7 @@ public sealed partial class SettingsModeView : UserControl
         _navItems = new Grid[]
         {
             NavGeneral, NavAppearance, NavBrowsing, NavSidebar, NavTools, NavShortcuts,
-            NavAdvanced, NavAbout, NavOpenSource
+            NavAdvanced, NavContextMenu, NavAbout, NavOpenSource
         };
         _selectedNavItem = NavGeneral;
 
@@ -101,6 +103,8 @@ public sealed partial class SettingsModeView : UserControl
                     if (_shortcutsLoaded && ShortcutItemsPanel != null)
                         RebuildShortcutItemsUI();
                 });
+            if (_shellHandlers != null)
+                DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, RenderShellExtensionRowsFromCache);
         };
     }
 
@@ -282,6 +286,7 @@ public sealed partial class SettingsModeView : UserControl
             FileHashToggle.IsOn = _settings.ShowFileHash;
             CopilotMenuToggle.IsOn = _settings.ShowCopilotMenu;
             ContextMenuToggle.IsOn = _settings.ShowContextMenu;
+            RebuildContextMenuItemChecks();
             CrashReportToggle.IsOn = _settings.EnableCrashReporting;
             IsolatedThumbsToggle.IsOn = _settings.UseIsolatedThumbnails;
 
@@ -319,6 +324,45 @@ public sealed partial class SettingsModeView : UserControl
         {
             _isLoading = false;
         }
+    }
+
+    /// <summary>
+    /// 組み込みメニュー項目ごとの表示チェックを作り直す。チェック＝表示。
+    /// </summary>
+    private void RebuildContextMenuItemChecks()
+    {
+        if (ContextMenuItemsPanel == null) return;
+        _syncingContextMenuItems = true;
+        try
+        {
+            ContextMenuItemsPanel.Children.Clear();
+            foreach (var (id, locKey) in Services.ContextMenuItemSettings.ToggleableItems)
+            {
+                var check = new CheckBox
+                {
+                    Content = _loc?.Get(locKey) ?? locKey,
+                    IsChecked = _settings.IsContextMenuItemVisible(id),
+                    Tag = id,
+                    HorizontalAlignment = HorizontalAlignment.Stretch,
+                    Margin = new Thickness(0, 1, 0, 1),
+                };
+                check.Checked += OnContextMenuItemChecked;
+                check.Unchecked += OnContextMenuItemChecked;
+                Helpers.CursorHelper.SetHandCursor(check);
+                ContextMenuItemsPanel.Children.Add(check);
+            }
+        }
+        finally
+        {
+            _syncingContextMenuItems = false;
+        }
+    }
+
+    private void OnContextMenuItemChecked(object sender, RoutedEventArgs e)
+    {
+        if (_isLoading || _syncingContextMenuItems) return;
+        if (sender is CheckBox check && check.Tag is string id)
+            _settings.SetContextMenuItemVisible(id, check.IsChecked == true);
     }
 
     // ── Wire UI events to save settings ──
@@ -589,6 +633,7 @@ public sealed partial class SettingsModeView : UserControl
             "Tools" => ToolsSection,
             "Shortcuts" => ShortcutsSection,
             "Advanced" => AdvancedSection,
+            "ContextMenu" => ContextMenuSection,
             "Support" => SupportSection,
             "About" => AboutSection,
             "OpenSource" => OpenSourceSection,
@@ -599,6 +644,8 @@ public sealed partial class SettingsModeView : UserControl
 
         if (tag == "Shortcuts")
             LoadShortcutsSection();
+        if (tag == "ContextMenu")
+            LoadShellExtensionPage();
     }
 
     // ── Language change restart notice ──
@@ -652,6 +699,7 @@ public sealed partial class SettingsModeView : UserControl
             SetNavText(NavTools, _loc.Get("Settings_Tools"));
             SetNavText(NavShortcuts, _loc.Get("Settings_Shortcuts") ?? "단축키");
             SetNavText(NavAdvanced, _loc.Get("Settings_Advanced"));
+            SetNavText(NavContextMenu, _loc.Get("Settings_RightClickMenu"));
             SetNavText(NavSupport, _loc.Get("Settings_SupportNav") ?? "Support");
             SetNavText(NavAbout, _loc.Get("Settings_AboutNav"));
             SetNavText(NavOpenSource, _loc.Get("Settings_OpenSourceNav"));
@@ -809,6 +857,10 @@ public sealed partial class SettingsModeView : UserControl
             CopilotDesc.Text = _loc.Get("Settings_CopilotMenuDesc");
             CtxMenuLabel.Text = _loc.Get("Settings_ContextMenu");
             CtxMenuDesc.Text = _loc.Get("Settings_ContextMenuDesc");
+            CtxMenuItemsLabel.Text = _loc.Get("Settings_ContextMenuItems");
+            CtxMenuItemsDesc.Text = _loc.Get("Settings_ContextMenuItemsDesc");
+            RebuildContextMenuItemChecks();
+            LocalizeShellExtensionPage();
 
             // Shortcuts
             ShortcutsTitle.Text = _loc.Get("Settings_Shortcuts") ?? "단축키";
@@ -1023,7 +1075,7 @@ public sealed partial class SettingsModeView : UserControl
         double navText = 13.0 + level;
         double navIcon = 16.0 + level;
         Grid[] navItems = { NavGeneral, NavAppearance, NavBrowsing, NavSidebar,
-                            NavTools, NavShortcuts, NavAdvanced, NavAbout, NavSupport, NavOpenSource };
+                            NavTools, NavShortcuts, NavAdvanced, NavContextMenu, NavAbout, NavSupport, NavOpenSource };
         foreach (var nav in navItems)
         {
             foreach (var child in nav.Children)

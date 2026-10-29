@@ -92,4 +92,48 @@ public class SettingsServiceStub : ISettingsService
     public bool ShelfEnabled { get; set; } = true;
 
     public string RecentCommandIds { get; set; } = string.Empty;
+
+    public string HiddenContextMenuItems
+    {
+        get => Get(ContextMenuItemSettings.StorageKey, "");
+        set => Set(ContextMenuItemSettings.StorageKey, value ?? "");
+    }
+
+    public bool IsContextMenuItemVisible(string id)
+        => ContextMenuItemSettings.IsVisible(HiddenContextMenuItems, id);
+
+    public void SetContextMenuItemVisible(string id, bool visible)
+        => HiddenContextMenuItems = ContextMenuItemSettings.SetVisible(HiddenContextMenuItems, id, visible);
+
+    public string ShellExtensionCtxOff
+    {
+        get => Get(ShellExtensionCatalogue.OffStorageKey, "");
+        set => Set(ShellExtensionCatalogue.OffStorageKey, value ?? "");
+    }
+
+    public string ShellExtensionCtxLabels
+    {
+        get => Get(ShellExtensionCatalogue.LabelsStorageKey, "");
+        set => Set(ShellExtensionCatalogue.LabelsStorageKey, value ?? "");
+    }
+
+    public bool IsShellExtensionEnabled(string id, byte scopeBit)
+        => ShellExtensionCatalogue.IsEnabled(ShellExtensionCatalogue.ParseMap(ShellExtensionCtxOff), id, scopeBit);
+
+    public void SetShellExtensionEnabled(string id, byte scopeBit, bool enabled)
+    {
+        var map = ShellExtensionCatalogue.ParseMap(ShellExtensionCtxOff);
+        ShellExtensionCatalogue.SetScope(map, id, scopeBit, enabled);
+        ShellExtensionCtxOff = ShellExtensionCatalogue.SerializeMap(map);
+    }
+
+    public void ResetAllShellExtensionsEnabled()
+        => ShellExtensionCtxOff = "";
+
+    public IReadOnlyList<ShellUiRow> GetShellExtensionUiRows()
+        => ShellExtensionCatalogue.Assemble(
+            ShellExtensionRegistry.GetOrScan(),
+            ShellExtensionCatalogue.ParseMap(ShellExtensionCtxOff),
+            ShellExtensionCatalogue.ParseMap(ShellExtensionCtxLabels),
+            "");
 }
